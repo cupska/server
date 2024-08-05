@@ -1,0 +1,1 @@
+exports.ERR_COMMON = "Telah terjadi kesalahan"
