@@ -1,9 +1,10 @@
 const db = require("../../config/db");
 
-async function getProducts(limit, page, title = "", category_id = 0) {
+async function getProducts(limit, page, { title = "", category_id = 0 }) {
   const offset = (page - 1) * limit;
-  const filterSql = `LIMIT ${limit} OFFSET ${offset}`;
-  const conditionSql = `(p.name ILIKE '${title}%' OR p.name ILIKE '% ${title}%' OR p.name ILIKE '% ${title}') ${
+  const paginationQuery = `LIMIT ${limit} OFFSET ${offset}`;
+  // console.log({ title, limit, page, category_id }, "titit");
+  const filterQuery = `(p.name ILIKE '${title}%' OR p.name ILIKE '% ${title}%' OR p.name ILIKE '% ${title}') ${
     category_id != 0 ? `AND p.category_id = ${category_id}` : ""
   }`;
   const joinSql = `INNER JOIN public."category" c ON p.category_id = c.id`;
@@ -11,14 +12,13 @@ async function getProducts(limit, page, title = "", category_id = 0) {
   const transaction = db.connect();
   try {
     const { rows, rowCount } = await db.query(
-      `SELECT p.*,c.name as category_name FROM public."product" p ${joinSql} WHERE ${conditionSql} ORDER BY name ASC ${filterSql}`
+      `SELECT p.*,c.name as category_name FROM public."product" p ${joinSql} WHERE ${filterQuery} ORDER BY name ASC ${paginationQuery}`
     );
     const {
       rows: [totalRow],
     } = await db.query(
-      `SELECT COUNT(*) FROM public."product" p WHERE ${conditionSql} `
+      `SELECT COUNT(*) FROM public."product" p WHERE ${filterQuery} `
     );
-    // console.log(rows);
     return { data: rows, rowCount, totalRow: Number(totalRow.count) };
   } catch (error) {
     error.statusCode = 400;
@@ -29,7 +29,11 @@ async function getProducts(limit, page, title = "", category_id = 0) {
 }
 
 async function getProductById(id) {
-  return await db.query(`SELECT * FROM public."product" WHERE id = ${id}`);
+  const {
+    rows: [product],
+  } = await db.query(`SELECT * FROM public."product" WHERE id = ${id}`);
+
+  return product;
 }
 
 async function addProducts(
@@ -45,9 +49,12 @@ async function addProducts(
     category_id,
   ]; // biar urut
   const reduc = `(${payloadToArr.map((val) => `'${val}'`).join()})`;
-  await db.query(
-    `INSERT INTO public."product"(name,image,sell_price,buy_price,amount,category_id) VALUES ${reduc}`
+  const {
+    rows: [product],
+  } = await db.query(
+    `INSERT INTO public."product"(name,image,sell_price,buy_price,amount,category_id) VALUES ${reduc} RETURNING id`
   );
+  return product;
 }
 
 async function updateProducts(id, payload = {}) {

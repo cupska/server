@@ -9,5 +9,12 @@ router.post(
   authController.registration
 );
 router.post("/login", authController.login);
+router.post("/logout", authController.logout);
+router.get("/session", authController.validate, (req, res) =>
+  res.status(200).json({
+    data: { isAuthenticated: true, user: req.params.user },
+    error: null,
+  })
+);
 
 module.exports = router;

@@ -1,5 +1,5 @@
 const fs = require("fs/promises");
-const { ERR_COMMON } = require("../../general/constant");
+const { ERR_COMMON } = require("../../general/constants");
 
 exports.deleteFile = async (filePath = "") => {
   try {

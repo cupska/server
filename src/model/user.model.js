@@ -1,20 +1,36 @@
 const db = require("../../config/db");
 
-const createUser = async ({ fullname, image, role, username, password }) => {
-  const newUser = await db.query(
+const getUserById = async (id) => {
+  return await db.query(`SELECT * FROM public."user" WHERE id = ${id}`);
+};
+const createUser = async ({
+  fullname,
+  image,
+  role = "admin",
+  username,
+  password,
+}) => {
+  const {
+    rows: [user],
+  } = await db.query(
     `INSERT INTO public."user"(fullname,image,role,username,password) VALUES ($1,$2,$3,$4,$5) RETURNING id,fullname`,
     [fullname, image, role, username, password]
   );
-  const { password: passwordCB, ...rest } = newUser.rows[0];
-  return rest;
+  return user;
 };
 
-const getPayloadLoginByUsername = async ({ username }) => {
-  const res = await db.query(
+const getUserByUsername = async ({ username }) => {
+  const {
+    rows: [userData],
+  } = await db.query(
     `SELECT fullname,id,password FROM public."user" WHERE username = $1`,
     [username]
   );
-  return res.rows[0];
+  if (!userData) {
+    const err = new Error("Akun tidak terdaftar");
+    throw err;
+  }
+  return userData;
 };
 
 const updateUser = async (id, payload) => {
@@ -40,9 +56,19 @@ const usernameCheck = async (username = "yusuf.kurn") => {
   return res.rows[0].exists;
 };
 
+const deleteByUsername = async (username) => {
+  try {
+    await db.query("DELETE FROM public.user WHERE username = $1", [username]);
+  } catch (error) {
+    console.error("gagal hapus user", error);
+  }
+};
+
 module.exports = {
   createUser,
-  getPayloadLoginByUsername,
+  getUserByUsername,
   updateUser,
   usernameCheck,
+  getUserById,
+  deleteByUsername,
 };

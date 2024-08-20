@@ -1,20 +1,25 @@
 const { config } = require("dotenv");
 const cors = require("cors");
 const express = require("express");
+const app = express();
+const authController = require("./controller/auth.controller.js");
+const { errorHandler } = require("./middleware/errorHandler.js");
+const cookieParser = require("cookie-parser");
+const { tokenValidator } = require("./middleware/token/tokenValidator.js");
+config();
+
 const userRouter = require("./routes/user.route.js");
 const authRouter = require("./routes/auth.route.js");
 const productRouter = require("./routes/product.route.js");
 const categoryRouter = require("./routes/category.route.js");
-const authController = require("./controller/auth.controller.js");
-const { errorHandler } = require("./middleware/errorHandler.js");
-const app = express();
-config();
 
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
-    origin: "*",
+    origin: "http://localhost:5173",
+    credentials: true,
   })
 );
 

@@ -26,4 +26,20 @@ const usernameCheck = async (req = request, res = response, next) => {
   }
 };
 
-module.exports = { updateUser, usernameCheck };
+const getUserById = async (
+  { params } = (req = request),
+  res = response,
+  next
+) => {
+  try {
+    const {
+      rows: [{ password, ...userData }],
+    } = await userModel.getUserById(params.user.id);
+    res.status(200).json({ data: userData, error: null });
+  } catch (err) {
+    err.statusCode = 400;
+    next(err);
+  }
+};
+
+module.exports = { updateUser, usernameCheck, getUserById };

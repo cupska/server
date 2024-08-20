@@ -6,7 +6,7 @@ const userRouter = express.Router();
 userRouter.post("/check/:username", userController.usernameCheck);
 
 // protected api👇
-userRouter.put("/:id", authController.verify, userController.updateUser);
-
+userRouter.put("/:id", authController.validate, userController.updateUser);
+userRouter.get("/profile", authController.validate, userController.getUserById);
 
 module.exports = userRouter;

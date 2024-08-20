@@ -1,11 +1,12 @@
 const bcrypt = require("bcrypt");
 const { request, response } = require("express");
-const {
-  getPayloadLoginByUsername: getUserPwByUsername,
-} = require("../model/user.model");
+const { getUserByUsername } = require("../model/user.model");
 const jwt = require("jsonwebtoken");
 const userModel = require("../model/user.model");
 const { config } = require("dotenv");
+const {
+  extractTokenFromCookieHeader,
+} = require("../utils/extractTokenFromCookieHeader");
 config();
 
 const registration = async (req = request, res = response, next) => {
@@ -13,36 +14,56 @@ const registration = async (req = request, res = response, next) => {
   try {
     const newUser = await userModel.createUser(body);
     const token = jwt.sign(newUser, process.env.JWT_SECRET, {
-      expiresIn: "1800s",
+      expiresIn: "1d",
     });
-    res.status(201).json({ data: { token, ...newUser }, error: null });
+    res
+      .status(201)
+      .json({ data: { message: "berhasil buat akun" }, error: null });
   } catch (error) {
-    console.error({ error });
     error.statusCode = 400;
     next(error);
-    // res.status(400).json({ data: null, error: error });
   }
 };
 
 const login = async (req = request, res = response, next) => {
   const { password, username } = req.body;
   try {
-    const { password: savedPw, ...rest } = await getUserPwByUsername({
+    const { password: savedPw, ...restUserData } = await getUserByUsername({
       username,
+    }).catch((err) => {
+      err.statusCode = 403;
+      next(err);
     });
-    const isValid = await bcrypt.compare(password, savedPw);
-    const token = jwt.sign(rest, process.env.JWT_SECRET, {
-      expiresIn: "1800s",
+
+    const isPwValid = await bcrypt.compare(password, savedPw);
+    if (!isPwValid) throw new Error("username atau password salah");
+
+    const token = jwt.sign({ user: restUserData }, process.env.JWT_SECRET, {
+      expiresIn: "1d",
     });
-    res.status(200).json({
-      data: { token, rest, message: "Berhasil login  " },
-    });  
+
+    res
+      .cookie("token", token, {
+        httpOnly: true,
+        sameSite: "strict",
+      })
+      .status(200)
+      .json({
+        data: { message: "berhasil masuk" },
+        error: null,
+      });
   } catch (error) {
-    error.stack = error.message;
-    error.statusCode = 403;
-    error.message = "telah terjadi kesalahan";
+    error.statusCode = 401;
     next(error);
-    // res.status(403).send(error.message);
+  }
+};
+
+const logout = async (req = request, res = response, next) => {
+  try {
+    res.clearCookie("token").status(200).send("Berhasil logout");
+  } catch (err) {
+    err.statusCode = 400;
+    next(err);
   }
 };
 
@@ -56,24 +77,30 @@ const hashingPw = async (req = request, res = response, next) => {
     next();
   } catch (error) {
     next(error);
-    // res.status(400).json({error.message});
   }
 };
 
-const verify = async (req = request, res = response) => {
-  const token = req.header("Authorization")?.split(" ")[1];
-
+const validate = async (req = request, res = response, next) => {
+  const token = req.cookies["token"];
   if (!token) {
     return res.status(401).json({ message: "No token, authorization denied" });
   }
-
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    const { user } = jwt.verify(token, process.env.JWT_SECRET);
+    req.params = { user, ...req.params };
     next();
   } catch (err) {
-    res.status(401).json({ message: "Token is not valid" });
+    res.status(401).json({
+      data: { isAuthenticated: false },
+      error: { message: "Token is not valid" },
+    });
   }
 };
 
-module.exports = { hashingPw, login, verify, registration };
+module.exports = {
+  hashingPw,
+  login,
+  validate,
+  registration,
+  logout,
+};

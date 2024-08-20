@@ -1,19 +1,34 @@
 const { request, response } = require("express");
 const productModel = require("../model/product.model");
 const { deleteFile } = require("../middleware/deleteFile");
+const { ERR_COMMON, MSG_BERHASIL_COMMON } = require("../../general/constants");
+const fastcsv = require("fast-csv");
+const fs = require("fs");
+const { error } = require("console");
+const db = require("../../config/db");
+const path = require("path");
+const { config } = require("dotenv");
+config();
 
 async function getProducts(req = request, res = response, next) {
-  const { limit = 5, page = 1, title, category } = req.query;
+  const { limit, page = 1, title = "", category: category_id = "" } = req.query;
   try {
-    const { rowCount, data, totalRow } = await productModel.getProducts(
-      limit,
-      page,
-      title,
-      category
-    );
-    res
-      .status(200)
-      .json({ data, paging: { limit, page, rowCount, totalRow, title } });
+    const {
+      rowCount: pageRow,
+      data,
+      totalRow,
+    } = await productModel.getProducts(limit, page, { title, category_id });
+    res.status(200).json({
+      data,
+      pagination: {
+        limit,
+        page,
+        pageRow,
+        totalRow,
+        filter: { title, category_id },
+      },
+      error: null,
+    });
   } catch (error) {
     next(error);
   }
@@ -22,21 +37,32 @@ async function getProducts(req = request, res = response, next) {
 async function getProductById(req = request, res = response, next) {
   const { params } = req;
   try {
-    const { rows } = await productModel.getProductById(params.id);
-    res.status(200).json({ data: rows[0], error: null });
+    console.log(params.id), "sa";
+    const product = await productModel.getProductById(params.id);
+    if (!product) {
+      const err = new Error("Produk tidak ditemukan");
+      err.statusCode = 404;
+      throw err;
+    }
+    res.status(200).json({ data: product, error: null });
   } catch (error) {
-    error.statusCode = 400;
     next(error);
   }
 }
 
-async function addProducts(req = request, res = response, next) {
+async function addProduct(req = request, res = response, next) {
   const { body } = req;
   try {
-    await productModel.addProducts({ image: req.file.filename, ...body });
-    res.status(201).json({ data: "Berhasil tambah produk", error: null });
+    const { id: productId } = await productModel.addProducts({
+      image: req.file.filename,
+      ...body,
+    });
+    res.status(201).json({
+      data: { product: { id: productId }, message: MSG_BERHASIL_COMMON },
+      error: null,
+    });
   } catch (error) {
-    console.error(error);
+    error.statusCode = 400;
     next(error);
   }
 }
@@ -46,16 +72,27 @@ async function updateProduct(
   res = response,
   next
 ) {
-  console.log(body, file, files);
-
   try {
-    const { rows } = await productModel.updateProducts(productId, {
-      image: String(file.filename),
+    if (body == {} && !file) {
+      throw new Error("Tidak ada payload. Payload: ", body);
+    }
+    const {
+      rows: [{ image: oldImage }],
+    } = await productModel.getProductImageById(productId);
+    if (oldImage && fs.existsSync("./.uploads/" + oldImage) && file) {
+      await deleteFile("./.uploads/" + oldImage);
+    }
+
+    await productModel.updateProducts(productId, {
+      ...(file && { image: String(file.filename) }),
       ...body,
     });
-    res.status(200).json({ data: "Berhasil ubah produk", error: null });
-    console.log(body, productId, rows);
+    res
+      .status(200)
+      .json({ data: { message: "Berhasil ubah produk" }, error: null });
   } catch (error) {
+    error.statusCode = 400;
+    console.log(error);
     next(error);
   }
 }
@@ -68,16 +105,42 @@ async function deleteProduct(req = request, res = response, next) {
     } = await productModel.getProductImageById(params.id);
     await productModel.deleteProduct(params.id);
     await deleteFile("./.uploads/" + image);
-    res.json({ data: "berhasil hapus", error: null });
+    res.status(200).json({ data: { message: "Berhasil hapus" }, error: null });
   } catch (error) {
     next(error);
   }
 }
 
+const exportFile = async (req = request, res, next) => {
+  try {
+    const filePath = path.join(__dirname, "produk.csv");
+
+    const { rows } = await db.query(
+      `SELECT *,'${process.env.API_URL}/img/' || p.image  AS image  FROM public."product" p`
+    );
+    const ws = fs.createWriteStream(filePath);
+
+    fastcsv
+      .write(rows, { headers: true })
+      .pipe(ws)
+      .on("finish", () => {
+        res.download(filePath, "data.csv", (err) => {
+          if (err) {
+            next(err);
+          }
+          fs.unlinkSync(filePath);
+        });
+      });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getProducts,
   getProductById,
-  addProducts,
+  addProduct,
   deleteProduct,
   updateProduct,
+  exportFile,
 };
