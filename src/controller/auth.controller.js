@@ -61,7 +61,10 @@ const login = async (req = request, res = response, next) => {
 
 const logout = async (req = request, res = response, next) => {
   try {
-    res.clearCookie("token").status(200).send("Berhasil logout");
+    res
+      .clearCookie("token", { sameSite: "none" })
+      .status(200)
+      .send("Berhasil logout");
   } catch (err) {
     err.statusCode = 400;
     next(err);
