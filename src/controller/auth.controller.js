@@ -62,7 +62,7 @@ const login = async (req = request, res = response, next) => {
 const logout = async (req = request, res = response, next) => {
   try {
     res
-      .clearCookie("token", { sameSite: "none" })
+      .clearCookie("token", { sameSite: "none", secure: true,  })
       .status(200)
       .send("Berhasil logout");
   } catch (err) {
