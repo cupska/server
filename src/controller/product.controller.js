@@ -2,11 +2,9 @@ const { request, response } = require("express");
 const productModel = require("../model/product.model");
 const imageModel = require("../model/image.model");
 
-const { deleteFile } = require("../middleware/deleteFile");
 const { ERR_COMMON, MSG_BERHASIL_COMMON } = require("../../general/constants");
 const fastcsv = require("fast-csv");
 const db = require("../../config/db");
-const path = require("path");
 const { config } = require("dotenv");
 
 config();
@@ -129,26 +127,35 @@ async function deleteProduct(req = request, res = response, next) {
   }
 }
 
-const exportFile = async (req = request, res, next) => {
+const exportFile = async (req = request, res = response, next) => {
   try {
-    const filePath = path.join(__dirname, "produk.csv");
-
     const { rows } = await db.query(
       `SELECT *,'${process.env.API_URL}/img/' || p.image  AS image  FROM public."product" p`
     );
-    const ws = fs.createWriteStream(filePath);
 
-    fastcsv
-      .write(rows, { headers: true })
-      .pipe(ws)
-      .on("finish", () => {
-        res.download(filePath, "data.csv", (err) => {
-          if (err) {
-            next(err);
-          }
-          fs.unlinkSync(filePath);
-        });
-      });
+    res.setHeader("Content-Disposition", 'attachment; filename="data.csv"');
+    res.setHeader("Content-Type", "text/csv");
+
+    const csvStream = fastcsv.format({ headers: true });
+    csvStream.pipe(res);
+    rows.forEach((row) => {
+      csvStream.write(row);
+    });
+
+    csvStream.end();
+    // const ws = fs.createWriteStream(filePath);
+    // fastcsv.format().pipe()
+    //     fastcsv
+    //       .write(rows, { headers: true })
+    //       .pipe(ws)
+    //       .on("finish", () => {
+    //         res.download(filePath, "data.csv", (err) => {
+    //           if (err) {
+    //             next(err);
+    //           }
+    //           fs.unlinkSync(filePath);
+    //         });
+    //       });
   } catch (error) {
     next(error);
   }

@@ -24,7 +24,7 @@ router.get("/img/:name", async (req, res) => {
     if (result.rows.length > 0) {
       const { name, data } = result.rows[0];
 
-      res.set("Content-Type", "image/jpeg"); // Atur content-type sesuai dengan jenis file (misalnya image/png)
+      res.set("Content-Type", "image/jpeg");
       res.send(data);
     } else {
       res.status(404).json({ error: "Image not found" });
