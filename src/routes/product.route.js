@@ -12,7 +12,28 @@ const fs = require("fs");
 const fastcsv = require("fast-csv");
 
 // START
-router.use("/img", express.static(path.join(__dirname, "../../.uploads")));
+
+router.get("/img/:name", async (req, res) => {
+  const { name } = req.params;
+
+  try {
+    const result = await db.query(
+      "SELECT name, data FROM public.image WHERE name = $1",
+      [name]
+    );
+    if (result.rows.length > 0) {
+      const { name, data } = result.rows[0];
+
+      res.set("Content-Type", "image/jpeg"); // Atur content-type sesuai dengan jenis file (misalnya image/png)
+      res.send(data);
+    } else {
+      res.status(404).json({ error: "Image not found" });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch image" });
+  }
+});
 
 router.get("/products", authController.validate, productController.getProducts);
 
@@ -32,13 +53,6 @@ router.post(
   "/product",
   authController.validate,
   upload.single("image"),
-  (err, req, res, next) => {
-    if (err) {
-      err.statusCode = 400;
-      next(err);
-    }
-    next();
-  },
   productController.addProduct
 );
 

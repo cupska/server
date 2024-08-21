@@ -1,3 +1,4 @@
+const { request } = require("express");
 const db = require("../../config/db");
 
 async function getProducts(limit, page, { title = "", category_id = 0 }) {

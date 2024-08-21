@@ -21,7 +21,7 @@ app.use(
     origin: process.env.CLIENT_HOST,
     credentials: true,
   })
-); 
+);
 
 app.use("/api/auth", authRouter);
 app.use("/api/user", userRouter);
