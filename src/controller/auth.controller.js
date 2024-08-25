@@ -48,6 +48,7 @@ const login = async (req = request, res = response, next) => {
         httpOnly: true,
         sameSite: "none",
         maxAge: 24 * 60 * 60,
+        expires: new Date(Date.now() + 86400 * 1000),
       })
       .status(200)
       .json({
