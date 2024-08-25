@@ -47,6 +47,7 @@ const login = async (req = request, res = response, next) => {
         secure: true,
         httpOnly: true,
         sameSite: "none",
+        maxAge: 24 * 60 * 60,
       })
       .status(200)
       .json({
@@ -62,7 +63,7 @@ const login = async (req = request, res = response, next) => {
 const logout = async (req = request, res = response, next) => {
   try {
     res
-      .clearCookie("token", { sameSite: "none", secure: true,  })
+      .clearCookie("token", { sameSite: "none", secure: true })
       .status(200)
       .send("Berhasil logout");
   } catch (err) {
