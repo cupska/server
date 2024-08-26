@@ -41,13 +41,13 @@ const login = async (req = request, res = response, next) => {
     const token = jwt.sign({ user: restUserData }, process.env.JWT_SECRET, {
       expiresIn: "1d",
     });
-
+ 
     res
       .cookie("token", token, {
         secure: true,
         httpOnly: true,
         sameSite: "none",
-        maxAge: 24 * 60 * 60,
+        priority: "high",
         expires: new Date(Date.now() + 86400 * 1000),
       })
       .status(200)
